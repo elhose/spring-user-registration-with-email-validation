@@ -3,6 +3,7 @@ package com.js.demo.registration;
 import com.js.demo.appuser.AppUser;
 import com.js.demo.appuser.AppUserRole;
 import com.js.demo.appuser.AppUserService;
+import com.js.demo.email.EmailSender;
 import com.js.demo.registration.token.ConfirmationToken;
 import com.js.demo.registration.token.ConfirmationTokenService;
 import lombok.AllArgsConstructor;
@@ -19,6 +20,7 @@ public class RegistrationService {
     private final EmailValidator emailValidator;
     private final AppUserService appUserService;
     private final ConfirmationTokenService confirmationTokenService;
+    private final EmailSender emailSender;
 
     public String register(RegistrationRequest request) {
         boolean isValidEmail = emailValidator.test(request.getEmail());
@@ -26,13 +28,17 @@ public class RegistrationService {
             throw new IllegalStateException("Provided email is not valid!");
         }
 
-        return appUserService.signUpUser(new AppUser(
+        String token = appUserService.signUpUser(new AppUser(
                 request.getFirstName(),
                 request.getLastName(),
                 request.getEmail(),
                 request.getPassword(),
                 AppUserRole.USER
         ));
+
+        emailSender.sendEmail(request.getEmail(), buildEmail(token));
+
+        return token;
     }
 
     @Transactional
@@ -52,5 +58,10 @@ public class RegistrationService {
         appUserService.enableAppUserByEmail(confirmationToken.getAppUser().getEmail());
 
         return "Email " + confirmationToken.getAppUser().getEmail() + " Confirmed!";
+    }
+
+    private String buildEmail(String token) {
+        String activationLink = "http://localhost:8080/api/v1/registration/confirm?token=" + token;
+        return "<a href=\"" + activationLink + "\"> Activation Link</a>";
     }
 }
